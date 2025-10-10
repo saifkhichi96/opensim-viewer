@@ -201,7 +201,7 @@ def display_model_in_viewer(
         cam_extrinsics = cam_extrinsics @ transform1 @ transform2
 
         cv_cam = OpenCVCamera(K, cam_extrinsics[:3], cols, rows, viewer=v)
-        pc = Billboard.from_camera_and_distance(cv_cam, 4.0, cols, rows, frame_paths)
+        pc = Billboard.from_camera_and_distance(cv_cam, 50.0, cols, rows, frame_paths)
         v.scene.add(pc)
         v.set_temp_camera(cv_cam)
         v.scene.floor.enabled = False
