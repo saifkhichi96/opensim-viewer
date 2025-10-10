@@ -9,6 +9,7 @@ from pathlib import Path
 from .core import display_model_in_viewer
 from .resources import ensure_appdata_geometry, link_or_copy_geometry
 from .session import session_context
+from .utils import smooth_mot_file
 
 _LOG = logging.getLogger("aitv-osim")
 
@@ -67,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-symlink", action="store_true", help="Copy Geometry instead of linking."
     )
+    parser.add_argument("--smooth", action="store_true", help="Apply low-pass filter to motion (.mot) before viewing.")
+    parser.add_argument("--cutoff", type=float, default=6.0, help="Cutoff frequency for smoothing (Hz).")
     parser.add_argument(
         "--log-level",
         type=str,
@@ -115,6 +118,12 @@ def main(argv: list[str] | None = None) -> int:
             mot_dest = work_dir / mot_path.name
             shutil.copy2(mot_path, mot_dest)
             mot_path = mot_dest
+
+        # Optionally smooth the MOT file in-place
+        if args.smooth and mot_path:
+            smoothed_path = work_dir / f"{mot_path.stem}_smooth.mot"
+            smooth_mot_file(mot_path, smoothed_path, cutoff_hz=args.cutoff)
+            mot_path = smoothed_path
 
         # Launch viewer
         display_model_in_viewer(
