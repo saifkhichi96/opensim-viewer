@@ -16,6 +16,7 @@ OpenSim visualization with [aitviewer-skel](https://github.com/MarilynKeller/ait
 
 ```bash
 python3.9 -m venv .venv && source .venv/bin/activate
+pip install deps/aitviewer-1.13.0-py2.py3-none-any.whl
 pip install -r requirements.txt
 pip install -e .
 
