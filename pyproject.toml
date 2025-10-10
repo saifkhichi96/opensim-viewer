@@ -7,7 +7,7 @@ name = "aitv-osim-app"
 version = "0.1.0"
 description = "OpenSim visualization with AITViewer overlay support (CLI + PyQt GUI)."
 readme = "README.md"
-requires-python = ">=3.9,<3.10"
+requires-python = ">=3.9,<3.13"
 authors = [{ name = "Saif Khichi", email = "saif@example.com" }]
 license = { text = "MIT" }
 
@@ -16,6 +16,7 @@ dependencies = [
   "numpy>=1.23,<2",
   "toml>=0.10,<1",
   "PyQt5>=5.15,<6",
+  "pandas",
   "platformdirs>=3,<5",
   "nimblephysics",      # heavy; ensure suitable wheel for your platform
   "pyvista>=0.42,<1",
