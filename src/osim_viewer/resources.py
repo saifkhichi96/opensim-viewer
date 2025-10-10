@@ -8,8 +8,8 @@ from pathlib import Path
 
 from platformdirs import user_data_dir
 
-APP_NAME = "AITV-OSIM-App"
-APP_AUTHOR = "saifkhichi96"
+APP_NAME = "osim-viewer"
+APP_AUTHOR = "mukh07"
 
 
 def appdata_root() -> Path:

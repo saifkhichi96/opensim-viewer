@@ -19,6 +19,6 @@ COPY assets /app/assets
 ENV PYTHONPATH=/app/src
 
 # Populate AppData Geometry on first run
-ENV OSIM_APPDATA=/root/.local/share/AITV-OSIM-App
+ENV OSIM_APPDATA=/root/.local/share/osim-viewer
 
 ENTRYPOINT ["osim-viewer"]

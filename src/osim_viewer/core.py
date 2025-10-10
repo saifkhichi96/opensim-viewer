@@ -167,7 +167,7 @@ def display_model_in_viewer(
         )
         mot_fps = getattr(osim_seq, "fps", None) or fps or 30
 
-    v = Viewer()
+    v = Viewer(title="OpenSim Viewer")
     v.scene.add(osim_seq)
 
     # Optional mocap markers

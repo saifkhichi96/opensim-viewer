@@ -20,7 +20,7 @@ def _which_cli_name() -> str:
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("AITV OpenSim Viewer")
+        self.setWindowTitle("OpenSim Viewer")
         self.resize(760, 520)
         self._build_ui()
         self.process: subprocess.Popen | None = None
