@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.21.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aitv-osim-app"
+version = "0.1.0"
+description = "OpenSim visualization with AITViewer overlay support (CLI + PyQt GUI)."
+readme = "README.md"
+requires-python = ">=3.9,<3.10"
+authors = [{ name = "Saif Khichi", email = "saif@example.com" }]
+license = { text = "MIT" }
+
+dependencies = [
+  "opencv-python>=4.7,<5",
+  "numpy>=1.23,<2",
+  "toml>=0.10,<1",
+  "PyQt5>=5.15,<6",
+  "platformdirs>=3,<5",
+  "nimblephysics",      # heavy; ensure suitable wheel for your platform
+  "pyvista>=0.42,<1",
+  "aitviewer-osim @ git+https://github.com/saifkhichi96/aitviewer-osim.git",
+]
+
+[project.urls]
+homepage = "https://github.com/saifkhichi96/aitv-osim-app"
+
+[project.scripts]
+aitv-osim = "aitv_osim_app.cli:main"
+aitv-osim-gui = "aitv_osim_app.gui:main"
+
+[tool.hatch.build]
+packages = ["src/aitv_osim_app"]
+include = [
+  "assets/Geometry/**",
+]
