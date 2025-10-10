@@ -8,7 +8,7 @@ OpenSim visualization with [aitviewer-skel](https://github.com/MarilynKeller/ait
 - Optional video billboard under calibrated camera (TOML)
 - Geometry meshes shipped in AppData and symlinked per run
 - No cache bloat: session directory is replaced every launch
-- CLI (`aitv-osim`) and GUI (`aitv-osim-gui`)
+- CLI (`osim-viewer`) and GUI (`osim-viewer-gui`)
 - Windows/macOS/Linux binaries via PyInstaller
 - Docker image for Linux (X11)
 
@@ -29,7 +29,7 @@ pre-commit install --install-hooks
 ### CLI
 
 ```bash
-aitv-osim \
+osim-viewer \
   --osim /path/model.osim \
   --mot /path/motion.mot \
   --video /path/video.mp4 \
@@ -42,12 +42,12 @@ Notes:
 - A fresh session directory is created under the OS cache dir each run and removed on exit.
 - Use `--keep-session` to inspect extracted frames and copied files.
 
-Run `aitv-osim -h` for all options.
+Run `osim-viewer -h` for all options.
 
 ## GUI
 
 ```bash
-aitv-osim-gui
+osim-viewer-gui
 ```
 
 Pick files and hit **Launch Viewer**. The GUI spawns the CLI and streams logs.
@@ -64,19 +64,19 @@ pyinstaller -y packaging/pyinstaller-gui.spec
 ```
 
 Artifacts:
-- `dist/aitv-osim` (CLI binary)
-- `dist/aitv-osim-gui` (GUI app)
+- `dist/osim-viewer` (CLI binary)
+- `dist/osim-viewer-gui` (GUI app)
 
 Ensure your `assets/Geometry/` contains the meshes you intend to ship; they are copied to per-user AppData on first run.
 
 ### Docker (Linux)
 
 ```bash
-docker build -t aitv-osim:latest .
+docker build -t osim-viewer:latest .
 xhost +local:root
 docker run --rm -it \
   -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -v $PWD:/data aitv-osim:latest \
+  -v $PWD:/data osim-viewer:latest \
   --osim /data/model.osim --mot /data/motion.mot
 ```
 

@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 from platformdirs import user_data_dir
 
@@ -72,7 +71,9 @@ def _try_windows_junction(src: Path, dst: Path) -> bool:
         if dst.exists():
             shutil.rmtree(dst, ignore_errors=True)
         # mklink /J "dst" "src"
-        subprocess.check_call(['cmd', '/c', 'mklink', '/J', str(dst), str(src)], shell=False)
+        subprocess.check_call(
+            ["cmd", "/c", "mklink", "/J", str(dst), str(src)], shell=False
+        )
         return True
     except Exception:
         return False

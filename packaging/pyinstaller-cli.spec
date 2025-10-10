@@ -1,15 +1,20 @@
 # pyinstaller-cli.spec
 # Build: pyinstaller -y packaging/pyinstaller-cli.spec
+import pathlib
 import sys
+from importlib.util import find_spec
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = collect_submodules('aitv_osim_app')
+hiddenimports = collect_submodules('osim_viewer')
+spec = find_spec("osim_viewer.cli")
+script_path = pathlib.Path(spec.origin)
+
 
 a = Analysis(
-    ['-m', 'aitv_osim_app.cli'],
+    [str(script_path)],
     pathex=[],
     binaries=[],
-    datas=[('assets/Geometry', 'assets/Geometry')],
+    datas=[('../assets/Geometry', 'assets/Geometry')],
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],

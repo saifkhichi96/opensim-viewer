@@ -5,4 +5,3 @@ PyQt5>=5.15,<6
 platformdirs>=3,<5
 nimblephysics
 pyvista>=0.42,<1
-git+https://github.com/saifkhichi96/aitviewer-osim.git

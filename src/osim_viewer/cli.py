@@ -11,7 +11,7 @@ from .resources import ensure_appdata_geometry, link_or_copy_geometry
 from .session import session_context
 from .utils import smooth_mot_file
 
-_LOG = logging.getLogger("aitv-osim")
+_LOG = logging.getLogger("osim-viewer")
 
 
 def _setup_logging(level: str) -> None:
@@ -24,7 +24,7 @@ def _setup_logging(level: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="OpenSim viewer with optional calibrated-video overlay (AITV)."
+        description="Command-line OpenSim model and motion viewer (OSIM Viewer)"
     )
     parser.add_argument("--osim", type=str, help="Path to the .osim file", default=None)
     parser.add_argument(
@@ -68,8 +68,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-symlink", action="store_true", help="Copy Geometry instead of linking."
     )
-    parser.add_argument("--smooth", action="store_true", help="Apply low-pass filter to motion (.mot) before viewing.")
-    parser.add_argument("--cutoff", type=float, default=6.0, help="Cutoff frequency for smoothing (Hz).")
+    parser.add_argument(
+        "--smooth",
+        action="store_true",
+        help="Apply low-pass filter to motion (.mot) before viewing.",
+    )
+    parser.add_argument(
+        "--cutoff", type=float, default=6.0, help="Cutoff frequency for smoothing (Hz)."
+    )
     parser.add_argument(
         "--log-level",
         type=str,

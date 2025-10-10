@@ -10,11 +10,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 def _which_cli_name() -> str:
     # Prefer installed entrypoint
-    exe = shutil.which("aitv-osim")
+    exe = shutil.which("osim-viewer")
     if exe:
         return exe
     # Editable / in-source: use current python -m
-    return sys.executable + " -m aitv_osim_app.cli"
+    return sys.executable + " -m osim_viewer.cli"
 
 
 class MainWindow(QtWidgets.QMainWindow):

@@ -1,11 +1,16 @@
-import re
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from scipy.signal import butter, filtfilt
 
 
-def smooth_mot_file(input_path: str | Path, output_path: str | Path, cutoff_hz: float = 6.0, order: int = 3) -> None:
+def smooth_mot_file(
+    input_path: str | Path,
+    output_path: str | Path,
+    cutoff_hz: float = 6.0,
+    order: int = 3,
+) -> None:
     """
     Smooths a .mot file using a zero-phase Butterworth low-pass filter.
 
