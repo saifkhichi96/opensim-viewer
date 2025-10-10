@@ -2,6 +2,8 @@
 
 OpenSim visualization with [aitviewer-skel](https://github.com/MarilynKeller/aitviewer-skel) overlays. Use a fast CLI or a minimal PyQt GUI, with meshes packaged in per-user AppData and safe, self-cleaning sessions.
 
+![Screenshot](screenshot.png)
+
 ## Features
 
 - Load `.osim` + `.mot`, optional `.c3d` markers
