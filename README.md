@@ -1,6 +1,6 @@
 # OpenSim Viewer
 
-OpenSim visualization with [aitviewer-skel](https://github.com/MarilynKeller/aitviewer-skel) overlays. Use a fast CLI or a minimal PyQt GUI, with meshes packaged in per-user AppData and safe, self-cleaning sessions.
+A cross-platform tool for visualizing biomechanical models and motion data from OpenSim with optional synchronized video overlays. Built using [`aitviewer`](https://eth-ait.github.io/aitviewer/), it includes both a command-line interface (CLI) and a PyQt-based GUI.
 
 ![Screenshot](screenshot.png)
 
@@ -8,11 +8,9 @@ OpenSim visualization with [aitviewer-skel](https://github.com/MarilynKeller/ait
 
 - Load `.osim` + `.mot`, optional `.c3d` markers
 - Optional video billboard under calibrated camera (TOML)
-- Geometry meshes shipped in AppData and symlinked per run
-- No cache bloat: session directory is replaced every launch
 - CLI (`osim-viewer`) and GUI (`osim-viewer-gui`)
-- Windows/macOS/Linux binaries via PyInstaller
-- Docker image for Linux (X11)
+- Buildable as standalone binaries for Windows/macOS/Linux via PyInstaller
+- Docker image for headless X11-based Linux usage
 
 ## Install (dev)
 
@@ -32,17 +30,21 @@ pre-commit install --install-hooks
 
 ```bash
 osim-viewer \
-  --osim /path/model.osim \
-  --mot /path/motion.mot \
-  --video /path/video.mp4 \
-  --calib /path/calibration.toml \
-  --fps 60 --color_parts --joints
+  --osim /path/to/model.osim \
+  --mot /path/to/motion.mot \
+  --video /path/to/video.mp4 \
+  --calib /path/to/calibration.toml \
+  --fps 50 \
+  --color_parts \
+  --joints \
+  --smooth
 ```
 
 Notes:
 - `--calib` is optional. If a video is provided without calibration, the video overlay is skipped.
 - A fresh session directory is created under the OS cache dir each run and removed on exit.
 - Use `--keep-session` to inspect extracted frames and copied files.
+- Use `--smooth` to reduce jitter in marker positions.
 
 Run `osim-viewer -h` for all options.
 
@@ -52,7 +54,7 @@ Run `osim-viewer -h` for all options.
 osim-viewer-gui
 ```
 
-Pick files and hit **Launch Viewer**. The GUI spawns the CLI and streams logs.
+Use the GUI to browse and select input files, then launch the viewer. The GUI spawns the CLI process and displays log output in real time.
 
 ## Packaging
 
@@ -110,5 +112,3 @@ The app will warn and skip overlay if `--video` is given without `--calib`.
 ## License
 
 MIT License. See [LICENSE](LICENSE).
-
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
