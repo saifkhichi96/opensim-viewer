@@ -9,12 +9,13 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 import toml
-from aitviewer.renderables.billboard import Billboard
-from aitviewer.renderables.markers import Markers
-from aitviewer.renderables.osim import OSIMSequence
-from aitviewer.scene.camera import OpenCVCamera
-from aitviewer.utils.vtp_to_ply import convert_meshes
-from aitviewer.viewer import Viewer
+
+from osim_viewer._rendering.renderables.billboard import Billboard
+from osim_viewer._rendering.renderables.markers import Markers
+from osim_viewer._rendering.renderables.osim import OSIMSequence
+from osim_viewer._rendering.scene.camera import OpenCVCamera
+from osim_viewer._rendering.utils.vtp_to_ply import convert_meshes
+from osim_viewer._rendering.viewer import Viewer
 
 _LOG = logging.getLogger(__name__)
 
@@ -122,6 +123,7 @@ def display_model_in_viewer(
     calib: Optional[str] = None,
     sync_to_mot: bool = True,
     frames_out_dir: Optional[Path] = None,
+    viewer: Optional[Viewer] = None,
 ) -> None:
     """
     Load an OpenSim model and motion, optionally overlay a video using a calibrated camera.
@@ -143,8 +145,11 @@ def display_model_in_viewer(
                 f"Missing Geometry folder next to OSIM at: {geom_dir}\n"
                 "The CLI/GUI normally symlinks this from AppData before calling core."
             )
-        if not any(p.suffix.lower() == ".ply" for p in geom_dir.iterdir()):
-            _LOG.warning("No .ply meshes detected in Geometry; converting in place...")
+        if any(
+            p.suffix.lower() in (".vtp", ".obj") and not Path(str(p) + ".ply").exists()
+            for p in geom_dir.iterdir()
+        ):
+            _LOG.info("Converting missing PLY geometry locally...")
             convert_meshes(str(geom_dir), str(geom_dir))
 
     if mot is None:
@@ -167,7 +172,7 @@ def display_model_in_viewer(
         )
         mot_fps = getattr(osim_seq, "fps", None) or fps or 30
 
-    v = Viewer(title="OpenSim Viewer")
+    v = viewer if viewer is not None else Viewer(title="OpenSim Viewer")
     v.scene.add(osim_seq)
 
     # Optional mocap markers
@@ -218,4 +223,5 @@ def display_model_in_viewer(
         v.playback_fps = mot_fps
 
     v.run_animations = True
-    v.run()
+    if viewer is None:
+        v.run()

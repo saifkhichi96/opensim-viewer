@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from scipy.signal import butter, filtfilt
 
 
@@ -50,23 +50,26 @@ def smooth_mot_file(
 
     # Step 2: load into DataFrame
     # First non-empty data line defines columns (tab-separated)
-    col_line = data_lines[0]
-    sep = "\t" if "\t" in col_line else r"\s+"
-    df = pd.read_csv(
-        input_path,
-        comment="#",
-        sep=sep,
-        skiprows=end_idx + 1,
-        engine="python",
-    )
+    rows = [line.split("#", 1)[0].strip() for line in data_lines]
+    rows = [line for line in rows if line]
+    if len(rows) < 3:
+        raise ValueError("Missing motion table or insufficient rows")
+    columns = rows[0].split()
+    if len(set(columns)) != len(columns):
+        raise ValueError("Duplicate motion columns")
+    values = np.loadtxt(StringIO("\n".join(rows[1:])), ndmin=2)
+    if values.shape[1] != len(columns) or not np.isfinite(values).all():
+        raise ValueError("Invalid motion table values")
 
     # Step 3: get sampling rate
-    if "time" not in df.columns:
+    if "time" not in columns:
         raise ValueError("Missing 'time' column; cannot infer sampling rate.")
-    time = df["time"].values
+    time = values[:, columns.index("time")]
     if len(time) < 2:
         raise ValueError("Not enough rows to estimate sampling rate.")
     dt = np.median(np.diff(time))
+    if np.any(np.diff(time) <= 0):
+        raise ValueError("Motion timestamps must increase")
     fs = 1.0 / dt  # Hz
 
     # Step 4: design filter (normalized cutoff)
@@ -75,17 +78,18 @@ def smooth_mot_file(
     b, a = butter(order, wn, btype="low", analog=False)
 
     # Step 5: filter all numeric columns except 'time'
-    smoothed = df.copy()
-    for col in df.columns:
+    smoothed = values.copy()
+    for index, col in enumerate(columns):
         if col.lower() == "time":
             continue
-        data = df[col].astype(float).values
+        data = values[:, index]
         if np.allclose(data, data[0]):
             continue  # skip constants
-        smoothed[col] = filtfilt(b, a, data)
+        smoothed[:, index] = filtfilt(b, a, data)
 
     # Step 6: write back with same header
     with open(output_path, "w", encoding="utf-8") as f:
         for line in header_lines:
             f.write(line)
-        smoothed.to_csv(f, sep="\t", index=False, float_format="%.8f")
+        f.write("\t".join(columns) + "\n")
+        np.savetxt(f, smoothed, delimiter="\t", fmt="%.8f")

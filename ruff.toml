@@ -47,6 +47,10 @@ unfixable = []
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[lint.per-file-ignores]
+# Preserve explicit control flow and resource ownership in the rendering runtime.
+"src/osim_viewer/_rendering/**/*.py" = ["RET504", "SIM", "C416", "C417", "C419"]
+
 [format]
 # Like Black, use double quotes for strings.
 quote-style = "double"

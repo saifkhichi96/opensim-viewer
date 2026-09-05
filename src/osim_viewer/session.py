@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -32,7 +33,8 @@ def session_context(keep: bool = False) -> Iterator[Path]:
     """
     Context manager that yields a fresh session root and cleans up on exit unless `keep` is True.
     """
-    root = reset_session()
+    cache_root().mkdir(parents=True, exist_ok=True)
+    root = Path(tempfile.mkdtemp(prefix="session-", dir=cache_root()))
     try:
         yield root
     finally:

@@ -15,11 +15,16 @@ dependencies = [
   "opencv-python>=4.7,<5",
   "numpy>=1.23,<2",
   "toml>=0.10,<1",
-  "PyQt5>=5.15,<6",
-  "pandas",
+  "pyglet>=2.0,<3",
   "platformdirs>=3,<5",
   "nimblephysics",
-  "pyvista>=0.42,<1",
+  "moderngl-window>=2.4.3,<3",
+  "moderngl>=5.8.2,<6",
+  "imgui==2.0.0",
+  "trimesh>=3.9.15,<4",
+  "scipy>=1.5.2",
+  "Pillow",
+  "tqdm>=4.60.0",
 ]
 
 [project.urls]
@@ -29,8 +34,8 @@ homepage = "https://pc-4501.kl.dfki.de/HMT-V/opensim-viewer"
 osim-viewer = "osim_viewer.cli:main"
 osim-viewer-gui = "osim_viewer.gui:main"
 
-[tool.hatch.build]
+[tool.hatch.build.targets.wheel]
 packages = ["src/osim_viewer"]
-include = [
-  "assets/Geometry/**",
-]
+
+[tool.hatch.build.targets.wheel.force-include]
+"assets/Geometry" = "osim_viewer/assets/Geometry"

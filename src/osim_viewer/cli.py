@@ -4,6 +4,7 @@ import argparse
 import logging
 import shutil
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 from .core import display_model_in_viewer
@@ -22,7 +23,9 @@ def _setup_logging(level: str) -> None:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None, *, viewer=None, sessions: ExitStack | None = None
+) -> int:
     parser = argparse.ArgumentParser(
         description="Command-line OpenSim model and motion viewer (OSIM Viewer)"
     )
@@ -90,7 +93,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.video and not args.calib:
         _LOG.warning("Video provided without --calib; overlay will be disabled.")
 
-    with session_context(keep=args.keep_session) as session_root:
+    with ExitStack() as local_sessions:
+        session_root = (
+            sessions if sessions is not None else local_sessions
+        ).enter_context(session_context(keep=args.keep_session))
         work_dir = session_root / "exec"
         frames_dir = session_root / "frames"
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -104,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
             if not args.no_symlink
             else "copy"
         )
+        if args.no_symlink:
+            shutil.copytree(appdata_geom, dst_geom)
         if mode == "copy" and not args.no_symlink:
             # Force copy as fallback if linking failed
             from .resources import shutil as _shutil  # type: ignore
@@ -144,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
             calib=args.calib,
             sync_to_mot=not args.no_sync,
             frames_out_dir=frames_dir,
+            viewer=viewer,
         )
 
     return 0

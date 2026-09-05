@@ -1,188 +1,217 @@
+"""Single-window OpenSim setup and viewing, using Dear ImGui and Pyglet."""
+
 from __future__ import annotations
 
-import shlex
-import shutil
-import subprocess
+import logging
+import math
 import sys
+from collections import deque
+from contextlib import ExitStack
+from pathlib import Path
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+import imgui
+
+from osim_viewer._rendering.viewer import Viewer
+from osim_viewer.cli import main as run_session
+
+FILE_FIELDS = {
+    "osim": ("Model (.osim)", (".osim",)),
+    "mot": ("Motion (.mot)", (".mot",)),
+    "video": ("Video", (".mp4", ".avi", ".mov", ".mkv")),
+    "calib": ("Calibration (.toml)", (".toml",)),
+    "mocap": ("Markers (.c3d)", (".c3d",)),
+}
+FLAGS = {
+    "color_parts": "Color skeleton parts",
+    "color_markers": "Color markers by parent part",
+    "joints": "Show joints",
+    "no-sync": "Use video FPS (no sync)",
+    "keep-session": "Keep session cache",
+    "no-symlink": "Copy Geometry (no symlink)",
+    "smooth": "Smooth motion",
+}
 
 
-def _which_cli_name() -> str:
-    # Prefer installed entrypoint
-    exe = shutil.which("osim-viewer")
-    if exe:
-        return exe
-    # Editable / in-source: use current python -m
-    return sys.executable + " -m osim_viewer.cli"
-
-
-class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self) -> None:
-        super().__init__()
-        self.setWindowTitle("OpenSim Viewer")
-        self.resize(760, 520)
-        self._build_ui()
-        self.process: subprocess.Popen | None = None
-
-    def _build_ui(self) -> None:
-        central = QtWidgets.QWidget(self)
-        layout = QtWidgets.QFormLayout(central)
-
-        def file_row(label: str, filter_: str = "All Files (*)"):
-            le = QtWidgets.QLineEdit()
-            btn = QtWidgets.QPushButton("Browse…")
-            btn.clicked.connect(lambda: self._browse(le, filter_))
-            row = QtWidgets.QHBoxLayout()
-            row.addWidget(le, 1)
-            row.addWidget(btn)
-            container = QtWidgets.QWidget()
-            container.setLayout(row)
-            return container, le
-
-        self.osim_w, self.osim_le = file_row("OSIM", "OpenSim (*.osim);;All Files (*)")
-        self.mot_w, self.mot_le = file_row(
-            "MOT", "OpenSim Motion (*.mot);;All Files (*)"
+def build_arguments(paths, flags, fps=0, cutoff=6.0):
+    """Validate setup and produce shell-free CLI arguments."""
+    if not paths.get("osim", "").strip():
+        raise ValueError(
+            "Select an OpenSim model first. Motion and other inputs are optional."
         )
-        self.video_w, self.video_le = file_row(
-            "Video", "Video Files (*.mp4 *.avi *.mov);;All Files (*)"
-        )
-        self.calib_w, self.calib_le = file_row(
-            "Calibration (TOML)", "TOML (*.toml);;All Files (*)"
-        )
-        self.mocap_w, self.mocap_le = file_row(
-            "Mocap (C3D)", "C3D (*.c3d);;All Files (*)"
-        )
+    args = []
+    for key in FILE_FIELDS:
+        value = paths.get(key, "").strip()
+        if value:
+            path = Path(value).expanduser()
+            if not path.is_file():
+                raise ValueError(f"File does not exist: {path}")
+            args.extend((f"--{key}", str(path.resolve())))
+    if fps < 0 or fps > 240:
+        raise ValueError("FPS must be 0 (automatic) or between 1 and 240.")
+    if fps:
+        args.extend(("--fps", str(fps)))
+    if not math.isfinite(cutoff) or (flags.get("smooth") and cutoff <= 0):
+        raise ValueError("Smoothing cutoff must be positive.")
+    args.extend(("--cutoff", str(cutoff)))
+    args.extend(f"--{key}" for key in FLAGS if flags.get(key))
+    return args
 
-        self.fps_sb = QtWidgets.QSpinBox()
-        self.fps_sb.setRange(1, 240)
-        self.fps_sb.setSpecialValueText("default")
-        self.fps_sb.setValue(0)
 
-        self.color_parts_cb = QtWidgets.QCheckBox("Color skeleton parts")
-        self.color_markers_cb = QtWidgets.QCheckBox("Color markers by parent part")
-        self.joints_cb = QtWidgets.QCheckBox("Show joints")
-        self.nosync_cb = QtWidgets.QCheckBox("Use video FPS (no sync)")
-        self.keep_session_cb = QtWidgets.QCheckBox("Keep session cache")
-        self.nosymlink_cb = QtWidgets.QCheckBox("Copy Geometry (no symlink)")
+class LogBuffer(logging.Handler):
+    """Bounded application logs for the setup panel."""
 
-        self.log_te = QtWidgets.QPlainTextEdit()
-        self.log_te.setReadOnly(True)
-        self.log_te.setMaximumBlockCount(2000)
+    def __init__(self):
+        super().__init__(logging.INFO)
+        self.lines = deque(maxlen=2000)
 
-        self.run_btn = QtWidgets.QPushButton("Launch Viewer")
-        self.run_btn.clicked.connect(self._run)
+    def emit(self, record):
+        self.lines.append(self.format(record))
 
-        # Assemble form
-        layout.addRow("OSIM", self.osim_w)
-        layout.addRow("MOT", self.mot_w)
-        layout.addRow("Video", self.video_w)
-        layout.addRow("Calibration", self.calib_w)
-        layout.addRow("Mocap", self.mocap_w)
-        layout.addRow("FPS", self.fps_sb)
-        layout.addRow("", self.color_parts_cb)
-        layout.addRow("", self.color_markers_cb)
-        layout.addRow("", self.joints_cb)
-        layout.addRow("", self.nosync_cb)
-        layout.addRow("", self.keep_session_cb)
-        layout.addRow("", self.nosymlink_cb)
-        layout.addRow(self.run_btn)
-        layout.addRow(self.log_te)
-        self.setCentralWidget(central)
 
-        # Light dark-ish theme
-        app = QtWidgets.QApplication.instance()
-        app.setStyle("Fusion")
-        palette = app.palette()
-        palette.setColor(palette.Window, QtGui.QColor(40, 40, 45))
-        palette.setColor(palette.WindowText, QtCore.Qt.white)
-        palette.setColor(palette.Base, QtGui.QColor(30, 30, 33))
-        palette.setColor(palette.Text, QtCore.Qt.white)
-        palette.setColor(palette.Button, QtGui.QColor(55, 55, 60))
-        palette.setColor(palette.ButtonText, QtCore.Qt.white)
-        app.setPalette(palette)
+class MainWindow(Viewer):
+    """Render setup and the loaded scene in a single OpenGL window."""
 
-    def _browse(self, line: QtWidgets.QLineEdit, filter_: str) -> None:
-        fn, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select file", "", filter_)
-        if fn:
-            line.setText(fn)
+    def __init__(self, **kwargs):
+        super().__init__(title="OpenSim Viewer", **kwargs)
+        self.paths = dict.fromkeys(FILE_FIELDS, "")
+        self.flags = dict.fromkeys(FLAGS, False)
+        self.fps = 0
+        self.cutoff = 6.0
+        self.show_setup = True
+        self.status = "Select a model; all other inputs are optional."
+        self.pending = None
+        self.sessions = ExitStack()
+        self.browser_field = None
+        self.browser_dir = str(Path.home())
+        self.logs = LogBuffer()
+        self.logs.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        self._logger = logging.getLogger("osim_viewer")
+        self._old_level = self._logger.level
+        self._logger.setLevel(logging.INFO)
+        self._logger.addHandler(self.logs)
+        logging.getLogger("osim-viewer").addHandler(self.logs)
+        self.gui_controls["setup"] = self.gui_setup
 
-    def _append_log(self, text: str) -> None:
-        self.log_te.appendPlainText(text.rstrip())
+    def gui_setup(self):
+        """Draw persistent setup access, input options, browser and logs."""
+        imgui.set_next_window_position(420, 30, condition=imgui.FIRST_USE_EVER)
+        imgui.begin("OpenSim inputs", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
+        if imgui.button("Hide setup" if self.show_setup else "Open / change model"):
+            self.show_setup = not self.show_setup
+        if self.show_setup:
+            for key, (label, _) in FILE_FIELDS.items():
+                _, self.paths[key] = imgui.input_text(label, self.paths[key], 4096)
+                imgui.same_line()
+                if imgui.button(f"Browse##{key}"):
+                    self.browser_field = key
+                    candidate = Path(self.paths[key]).expanduser()
+                    if candidate.is_file():
+                        self.browser_dir = str(candidate.parent)
+            _, self.fps = imgui.input_int("FPS (0 = automatic)", self.fps)
+            for key, label in FLAGS.items():
+                _, self.flags[key] = imgui.checkbox(label, self.flags[key])
+            if self.flags["smooth"]:
+                _, self.cutoff = imgui.input_float("Cutoff (Hz)", self.cutoff)
+            if self.paths["video"] and not self.paths["calib"]:
+                imgui.text_wrapped(
+                    "Video overlay needs calibration; without it, only the model is shown."
+                )
+            if imgui.button("Load in viewer"):
+                try:
+                    self.pending = build_arguments(
+                        self.paths, self.flags, self.fps, self.cutoff
+                    )
+                    self.status = "Loading... (large recordings may take a while)"
+                except ValueError as exc:
+                    self.status = str(exc)
+            imgui.text_wrapped(self.status)
+            if imgui.collapsing_header("Session logs")[0]:
+                imgui.begin_child("logs", width=550, height=150)
+                for line in tuple(self.logs.lines):
+                    imgui.text_unformatted(line)
+                imgui.end_child()
+        imgui.end()
+        if self.browser_field:
+            self.gui_browser()
 
-    def _run(self) -> None:
-        if self.process:
-            self._append_log("Process already running.")
-            return
+    def gui_browser(self):
+        """Browse the local filesystem without a second UI toolkit."""
+        imgui.set_next_window_size(600, 450, condition=imgui.FIRST_USE_EVER)
+        imgui.begin("Select input file")
+        _, self.browser_dir = imgui.input_text("Directory", self.browser_dir, 4096)
+        directory = Path(self.browser_dir).expanduser()
+        if imgui.button("Parent"):
+            directory = directory.parent
+            self.browser_dir = str(directory)
+        imgui.same_line()
+        if imgui.button("Cancel"):
+            self.browser_field = None
+        imgui.begin_child("files", height=330)
+        if self.browser_field:
+            try:
+                entries = sorted(
+                    directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())
+                )
+                for entry in entries:
+                    is_dir = entry.is_dir()
+                    if (
+                        not is_dir
+                        and entry.suffix.lower()
+                        not in FILE_FIELDS[self.browser_field][1]
+                    ):
+                        continue
+                    if imgui.selectable(("[Dir] " if is_dir else "") + entry.name)[0]:
+                        if is_dir:
+                            self.browser_dir = str(entry)
+                        else:
+                            self.paths[self.browser_field] = str(entry.resolve())
+                            self.browser_field = None
+                        break
+            except OSError as exc:
+                imgui.text_wrapped(str(exc))
+        imgui.end_child()
+        imgui.end()
 
-        args = []
-        if self.osim_le.text():
-            args += ["--osim", self.osim_le.text()]
-        if self.mot_le.text():
-            args += ["--mot", self.mot_le.text()]
-        if self.video_le.text():
-            args += ["--video", self.video_le.text()]
-        if self.calib_le.text():
-            args += ["--calib", self.calib_le.text()]
-        if self.mocap_le.text():
-            args += ["--mocap", self.mocap_le.text()]
+    def render(self, time, frame_time, **kwargs):
+        """Load outside the ImGui frame; GL work stays on the window thread."""
+        if self.pending is not None:
+            args, self.pending = self.pending, None
+            self.reset()
+            self.sessions.close()
+            try:
+                run_session(args, viewer=self, sessions=self.sessions)
+                self._init_scene()
+                self.export_animation_range[-1] = self.scene.n_frames - 1
+                self._last_frame_rendered_at = time
+                self.status = "Loaded. Open setup to load another recording."
+                self.show_setup = False
+            except Exception as exc:
+                self._logger.exception("Unable to load recording")
+                self.reset()
+                self.sessions.close()
+                self._init_scene()
+                self.status = f"Unable to load: {exc}"
+        super().render(time, frame_time, **kwargs)
 
-        fps = self.fps_sb.value()
-        if fps > 0:
-            args += ["--fps", str(fps)]
-        if self.color_parts_cb.isChecked():
-            args.append("--color_parts")
-        if self.color_markers_cb.isChecked():
-            args.append("--color_markers")
-        if self.joints_cb.isChecked():
-            args.append("--joints")
-        if self.nosync_cb.isChecked():
-            args.append("--no-sync")
-        if self.keep_session_cb.isChecked():
-            args.append("--keep-session")
-        if self.nosymlink_cb.isChecked():
-            args.append("--no-symlink")
-
-        cli = _which_cli_name()
-        cmd = f"{cli} {' '.join(shlex.quote(a) for a in args)}"
-        self._append_log(f"Running: {cmd}")
-        # Use shell=True only if cli is string with space (python -m ...)
-        shell = " -m " in cli
-        self.process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            shell=shell,
-            universal_newlines=True,
-        )
-
-        self._timer = QtCore.QTimer(self)
-        self._timer.timeout.connect(self._pump_output)
-        self._timer.start(50)
-
-    def _pump_output(self) -> None:
-        if not self.process:
-            return
-        assert self.process.stdout is not None
-        line = self.process.stdout.readline()
-        if line:
-            self._append_log(line)
-        if self.process.poll() is not None:
-            # flush remaining
-            remaining = self.process.stdout.read()
-            if remaining:
-                self._append_log(remaining)
-            rc = self.process.returncode
-            self._append_log(f"Process exited with code {rc}")
-            self._timer.stop()
-            self.process = None
+    def on_close(self):
+        """Release graphics before removing extracted video frames."""
+        try:
+            super().on_close()
+        finally:
+            if hasattr(self, "sessions"):
+                if self.scene is not None:
+                    self.scene.release()
+                    self.scene = None
+                self.sessions.close()
+                self._logger.removeHandler(self.logs)
+                self._logger.setLevel(self._old_level)
+                logging.getLogger("osim-viewer").removeHandler(self.logs)
 
 
 def main() -> int:
-    app = QtWidgets.QApplication(sys.argv)
-    win = MainWindow()
-    win.show()
-    return app.exec_()
+    """Open the integrated setup view without a subprocess or Qt runtime."""
+    MainWindow().run()
+    return 0
 
 
 if __name__ == "__main__":

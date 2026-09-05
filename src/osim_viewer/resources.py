@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -23,11 +24,10 @@ def ensure_appdata_geometry() -> Path:
     Returns the AppData Geometry path.
     """
     target = appdata_root() / "Geometry"
-    if target.exists():
-        return target
 
     # Discover bundled assets in both dev/wheel and PyInstaller contexts.
     candidates = []
+    candidates.append(Path(__file__).resolve().parent / "assets" / "Geometry")
 
     # 1) Package-relative (editable/wheel)
     pkg_assets = Path(__file__).resolve().parent.parent.parent / "assets" / "Geometry"
@@ -41,14 +41,38 @@ def ensure_appdata_geometry() -> Path:
 
     for src in candidates:
         if src.exists():
+            if target.exists():
+                refresh_preconverted_geometry(src, target)
+                return target
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(src, target)
             return target
 
+    if target.exists():
+        return target
     raise FileNotFoundError(
         "Could not find bundled Geometry assets. "
         "Ensure assets/Geometry is present in the project or included by PyInstaller."
     )
+
+
+def refresh_preconverted_geometry(source: Path, target: Path) -> None:
+    """Add missing PLY companions only for unchanged bundled VTP originals.
+
+    Existing user meshes and converted files are never overwritten.
+    """
+    for converted in source.glob("*.vtp.ply"):
+        destination = target / converted.name
+        original_name = converted.name[:-4]
+        original = target / original_name
+        packaged = source / original_name
+        if destination.exists() or not original.is_file() or not packaged.is_file():
+            continue
+        if (
+            hashlib.sha256(original.read_bytes()).digest()
+            == hashlib.sha256(packaged.read_bytes()).digest()
+        ):
+            shutil.copy2(converted, destination)
 
 
 def _try_symlink(src: Path, dst: Path) -> bool:

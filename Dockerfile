@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src /app/src
 COPY assets /app/assets
+RUN pip install --no-cache-dir --no-deps .
 ENV PYTHONPATH=/app/src
 
 # Populate AppData Geometry on first run

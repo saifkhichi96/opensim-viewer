@@ -1,7 +1,13 @@
 opencv-python>=4.7,<5
 numpy>=1.23,<2
 toml>=0.10,<1
-PyQt5>=5.15,<6
+pyglet>=2.0,<3
 platformdirs>=3,<5
 nimblephysics
-pyvista>=0.42,<1
+moderngl-window>=2.4.3,<3
+moderngl>=5.8.2,<6
+imgui==2.0.0
+trimesh>=3.9.15,<4
+scipy>=1.5.2
+Pillow
+tqdm>=4.60.0
