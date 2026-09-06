@@ -15,11 +15,18 @@ A tool for visualizing biomechanical models and motion data from OpenSim with op
 ## Install (dev)
 
 ```bash
-python3.9 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e .
 
 pip install -r requirements-dev.txt
 pre-commit install --install-hooks
+```
+
+or with `uv`:
+
+```bash
+uv venv .venv --python 3.11
+uv pip install --python .venv/bin/python -e . pytest build hatchling
 ```
 
 ## Usage
