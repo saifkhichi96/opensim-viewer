@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import cv2
 import numpy as np
 import toml
+from scipy.spatial.transform import Rotation
 
 from osim_viewer._rendering.renderables.billboard import Billboard
 from osim_viewer._rendering.renderables.markers import Markers
@@ -44,7 +43,7 @@ def load_calibration(toml_path: str | Path, camera_name: str) -> dict:
     dist = np.asarray(c["distortions"], dtype=float).reshape(-1)
     rvec = np.asarray(c["rotation"], dtype=float).reshape(3)
     tvec = np.asarray(c["translation"], dtype=float).reshape(3)
-    R, _ = cv2.Rodrigues(rvec)
+    R = Rotation.from_rotvec(rvec).as_matrix()
 
     size = tuple(int(x) for x in c["size"])
     if K.shape != (3, 3):
@@ -67,47 +66,9 @@ def extract_video_frames(
     Extract frames to out_dir. Returns (frame_paths, cols, rows, fps_used).
     If fps_out is set, decimate frames to approximately match fps_out (assumes constant fps).
     """
-    out_dir.mkdir(parents=True, exist_ok=True)
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        raise FileNotFoundError(f"Cannot open video: {video_path}")
+    from osim_viewer._rendering.utils.media import extract_video_frames as decode
 
-    src_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    cols = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    rows = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    if fps_out and fps_out > 0:
-        stride = max(int(round(src_fps / fps_out)), 1)
-        fps_used = int(round(src_fps / stride))
-    else:
-        stride = 1
-        fps_used = int(round(src_fps))
-
-    frame_paths: List[str] = []
-    idx = kept = 0
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-        if idx % stride == 0:
-            outfile = out_dir / f"frame_{kept:06d}.jpg"
-            cv2.imwrite(str(outfile), frame)
-            frame_paths.append(str(outfile))
-            kept += 1
-            if limit_n is not None and kept >= limit_n:
-                break
-        idx += 1
-    cap.release()
-
-    if not frame_paths:
-        # Clean directory to avoid stale empties
-        try:
-            shutil.rmtree(out_dir, ignore_errors=True)
-        finally:
-            pass
-        raise RuntimeError("No frames extracted from video.")
-
-    return frame_paths, cols, rows, fps_used
+    return decode(video_path, fps_out, out_dir, limit_n)
 
 
 def display_model_in_viewer(
@@ -205,7 +166,9 @@ def display_model_in_viewer(
         transform2 = np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]])
         cam_extrinsics = cam_extrinsics @ transform1 @ transform2
 
-        cv_cam = OpenCVCamera(K, cam_extrinsics[:3], cols, rows, viewer=v)
+        cv_cam = OpenCVCamera(
+            K, cam_extrinsics[:3], cols, rows, viewer=v, dist_coeffs=C["dist"]
+        )
         pc = Billboard.from_camera_and_distance(cv_cam, 50.0, cols, rows, frame_paths)
         v.scene.add(pc)
         v.set_temp_camera(cv_cam)

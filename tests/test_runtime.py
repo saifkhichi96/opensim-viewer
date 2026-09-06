@@ -69,13 +69,13 @@ def test_calibrated_camera(tmp_path):
 
 
 def test_video_extraction(tmp_path):
-    import cv2
+    from PIL import Image
 
-    path = tmp_path / "clip.avi"
-    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 30, (64, 48))
-    assert writer.isOpened()
-    for value in range(6):
-        writer.write(np.full((48, 64, 3), value * 20, np.uint8))
-    writer.release()
+    from osim_viewer._rendering.utils.video import VideoWriter
+
+    path = tmp_path / "clip.mp4"
+    with VideoWriter(path, 30) as writer:
+        for value in range(6):
+            writer.write(Image.fromarray(np.full((48, 64, 3), value * 20, np.uint8)))
     frames, width, height, fps = extract_video_frames(path, 15, tmp_path / "frames")
     assert (len(frames), width, height, fps) == (3, 64, 48, 15)

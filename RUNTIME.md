@@ -30,7 +30,16 @@ Camera settings use validated, versioned JSON in `camera_params/cam_params.json`
 
 ## Dependencies and export
 
-NimblePhysics depends on PyTorch. Rendering uses NumPy/SciPy, ModernGL, Pyglet, ImGui, Trimesh, Pillow and OpenCV. No separate AITViewer, Qt, VTK/PyVista, Pandas, OmegaConf or Joblib package is required.
+NimblePhysics depends on PyTorch. Rendering uses NumPy/SciPy, ModernGL, Pyglet, ImGui, Trimesh and Pillow. No separate AITViewer, Qt, OpenCV, VTK/PyVista, Pandas, OmegaConf or Joblib package is required.
+
+Video input requires FFmpeg and FFprobe on PATH. Frame extraction selects every
+nth decoded frame and reports rounded playback FPS; it is not a timestamp-aware
+variable-frame-rate synchronization pipeline. Image loading uses Pillow, and
+rotation-vector conversion uses SciPy. Lens correction supports OpenCV-format
+4/5/8/12/14-coefficient models (radial, tangential, rational, thin-prism and sensor
+tilt), including zero-filled image borders. Calibration distortion coefficients
+are applied by the video billboard. Local sampling is tested against OpenCV to
+within one intensity level; optional oracle tests require OpenCV only for testing.
 
 Video export pipes RGB/RGBA frames to system FFmpeg, which must be on `PATH`. MP4 uses H.264; WebM uses VP9 and supports transparent output. GIF conversion also uses FFmpeg. PNG-only export requires no encoder. FFmpeg is installed in the Docker image but is not bundled in the Python wheel.
 

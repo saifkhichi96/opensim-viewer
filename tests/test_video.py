@@ -3,11 +3,11 @@
 import shutil
 from types import SimpleNamespace
 
-import cv2
 import pytest
 from PIL import Image
 
 from osim_viewer._rendering.utils import video
+from osim_viewer._rendering.utils.media import extract_video_frames
 
 
 def fake_viewer():
@@ -36,16 +36,10 @@ def test_real_encoding(tmp_path, extension):
         with Image.open(destination) as image:
             assert image.size == (34, 26)
     else:
-        cap = cv2.VideoCapture(str(destination))
-        count = 0
-        while True:
-            ok, image = cap.read()
-            if not ok:
-                break
-            assert image.shape[:2] == (26, 34)
-            count += 1
-        cap.release()
-        assert count == 6
+        decoded, width, height, fps = extract_video_frames(
+            destination, None, tmp_path / "decoded"
+        )
+        assert (len(decoded), width, height, fps) == (6, 34, 26, 60)
 
 
 def test_single_frame_downsample_and_static_default(tmp_path):

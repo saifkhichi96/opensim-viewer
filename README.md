@@ -46,7 +46,8 @@ Notes:
 
 Run `osim-viewer -h` for all options.
 
-Video/GIF export requires the `ffmpeg` executable on `PATH` (H.264 for MP4,
+Video input requires `ffmpeg` and `ffprobe` on `PATH`. Video/GIF export requires
+`ffmpeg` (H.264 for MP4,
 VP9 for WebM). No scikit-video Python package is needed. Transparent video uses
 WebM; PNG frame export works without FFmpeg. Encoder failures are shown in the
 export dialog and playback/camera state is restored.
@@ -115,7 +116,7 @@ The app will warn and skip overlay if `--video` is given without `--calib`.
 - Python 3.9 (recommended). Other versions are not tested.
 - Native dependencies (`nimblephysics` and OpenGL) are still required.
   NimblePhysics depends on PyTorch. The renderer itself uses NumPy/SciPy, not PyTorch.
-- VTK/PyVista, Pandas, OmegaConf and Joblib are not runtime dependencies.
+- OpenCV, VTK/PyVista, Pandas, OmegaConf and Joblib are not runtime dependencies.
   Bundled geometry includes preconverted PLY surfaces; imported VTP surfaces use
   the local reader. See [supported formats and settings](RUNTIME.md).
 

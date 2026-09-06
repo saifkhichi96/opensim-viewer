@@ -1,6 +1,6 @@
 FROM python:3.9-slim
 
-# System deps for OpenCV, Qt, and OpenGL context
+# System dependencies for FFmpeg and the OpenGL/X11 window
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 libx11-6 libxext6 libxrender1 libsm6 \
     libxkbcommon0 libxkbcommon-x11-0 libxcb1 libxfixes3 \

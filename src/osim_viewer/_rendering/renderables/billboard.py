@@ -2,10 +2,10 @@
 import pickle
 from typing import List, Union
 
-import cv2
 import moderngl
 import numpy as np
 from moderngl_window.opengl.vao import VAO
+from PIL import Image
 from trimesh.triangles import points_to_barycentric
 
 from osim_viewer._rendering.scene.camera import Camera, OpenCVCamera
@@ -16,6 +16,7 @@ from osim_viewer._rendering.shaders import (
     get_screen_texture_program,
 )
 from osim_viewer._rendering.utils.decorators import hooked
+from osim_viewer._rendering.utils.media import undistort as undistort_image
 
 
 class Billboard(Node):
@@ -64,7 +65,8 @@ class Billboard(Node):
         Initialize Billboards at default location with the given textures.
         """
         if isinstance(textures, list) and isinstance(textures[0], str):
-            img = cv2.imread(textures[0])
+            with Image.open(textures[0]) as image:
+                img = np.asarray(image.convert("RGB"))
         else:
             img = textures[0]
             if not isinstance(img, np.ndarray):
@@ -120,7 +122,7 @@ class Billboard(Node):
             if isinstance(camera, OpenCVCamera) and camera.dist_coeffs is not None:
 
                 def undistort(img, current_frame_id):
-                    return cv2.undistort(img, camera.current_K, camera.dist_coeffs)
+                    return undistort_image(img, camera.current_K, camera.dist_coeffs)
 
                 image_process_fn = undistort
         return cls(all_corners, textures, image_process_fn, **kwargs)
@@ -157,7 +159,8 @@ class Billboard(Node):
                 if path.endswith((".pickle", "pkl")):
                     img = pickle.load(open(path, "rb"))
                 else:
-                    img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
+                    with Image.open(path) as image:
+                        img = np.asarray(image.convert("RGB"))
             else:
                 img = self.textures[self.current_frame_id]
                 if not isinstance(img, np.ndarray):
